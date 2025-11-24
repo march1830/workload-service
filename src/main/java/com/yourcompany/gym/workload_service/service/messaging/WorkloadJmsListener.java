@@ -18,15 +18,16 @@ public class WorkloadJmsListener {
     public void receiveWorkload(TrainerWorkloadRequest request) {
         log.info("Receive message ActiveMQ for trainer: ", request.getTrainerUsername());
 
-        //if (true) {
-        //    throw new RuntimeException("Тестовая авария для проверки DLQ");
-        //}
+        if ("dlq.test".equals(request.getTrainerUsername())) {
+            throw new RuntimeException("Test DLQ: test error for dlq_test");
+        }
 
         try {
             trainerWorkloadService.processWorkload(request);
             log.info("Workload update successfully");
         } catch (Exception e) {
             log.error("Error processing the message", e);
+            throw e;
 
         }
     }
