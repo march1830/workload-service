@@ -4,6 +4,8 @@ import com.yourcompany.gym.workload_service.dto.TrainerWorkloadRequest;
 import com.yourcompany.gym.workload_service.model.MonthSummary;
 import com.yourcompany.gym.workload_service.model.TrainerSummary;
 import com.yourcompany.gym.workload_service.model.YearSummary;
+import com.yourcompany.gym.workload_service.repository.TrainerWorkloadRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -16,25 +18,25 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TrainerWorkloadService {
 
-private final Map<String, TrainerSummary> trainerDatabase = new ConcurrentHashMap<>();
+
+    private final TrainerWorkloadRepository workloadRepository;
 
     public void processWorkload (TrainerWorkloadRequest request) {
         String username = request.getTrainerUsername();
-        TrainerSummary trainerSummary;
-        if (trainerDatabase.containsKey(username)) {
-            log.info("Found existing summary for trainer: {}", username);
-            trainerSummary = trainerDatabase.get(username);
-        } else {
+        TrainerSummary trainerSummary = workloadRepository.findByTrainerUsername(username)
+                .orElseGet(() -> {
             log.info("Creating new summary for trainer: {}", username);
-            trainerSummary = new TrainerSummary();
-            trainerSummary.setTrainerUsername(username);
-            trainerSummary.setTrainerFirstName(request.getTrainerFirstName());
-            trainerSummary.setTrainerLastname(request.getTrainerLastName());
-            trainerSummary.setTrainerStatus(request.getIsActive());
-            trainerSummary.setYearSummaries(new ArrayList<>());
-        }
+            TrainerSummary newSummary = new TrainerSummary();
+                    newSummary.setTrainerUsername(username);
+                    newSummary.setTrainerFirstName(request.getTrainerFirstName());
+                    newSummary.setTrainerLastName(request.getTrainerLastName());
+                    newSummary.setTrainerStatus(request.getIsActive());
+                    newSummary.setYearSummaries(new ArrayList<>());
+                    return newSummary;
+                });
         LocalDate trainingDate = request.getTrainingDate();
         int year = trainingDate.getYear();
         Month month = trainingDate.getMonth();
@@ -84,9 +86,10 @@ private final Map<String, TrainerSummary> trainerDatabase = new ConcurrentHashMa
                 }
         log.info("New total hours for {}{}{}:", year, month, monthSummary.getHours());
 
-        trainerDatabase.put(username, trainerSummary);
+        workloadRepository.save(trainerSummary);
     }
     public TrainerSummary getTrainerSummary(String username) {
-        return trainerDatabase.get(username);
+        return workloadRepository.findByTrainerUsername(username)
+                .orElse(null);
     }
 }
