@@ -12,4 +12,5 @@ public class TrainerWorkloadRequest {
   private LocalDate trainingDate;
   private Long trainingDuration;
   private String actionType;
+    private String transactionId;
 }

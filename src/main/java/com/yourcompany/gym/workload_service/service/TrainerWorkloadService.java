@@ -4,6 +4,8 @@ import com.yourcompany.gym.workload_service.dto.TrainerWorkloadRequest;
 import com.yourcompany.gym.workload_service.model.MonthSummary;
 import com.yourcompany.gym.workload_service.model.TrainerSummary;
 import com.yourcompany.gym.workload_service.model.YearSummary;
+import com.yourcompany.gym.workload_service.repository.TrainerWorkloadRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -16,29 +18,42 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class TrainerWorkloadService {
 
-private final Map<String, TrainerSummary> trainerDatabase = new ConcurrentHashMap<>();
+
+    private final TrainerWorkloadRepository workloadRepository;
 
     public void processWorkload (TrainerWorkloadRequest request) {
-        String username = request.getTrainerUsername();
-        TrainerSummary trainerSummary;
-        if (trainerDatabase.containsKey(username)) {
-            log.info("Found existing summary for trainer: {}", username);
-            trainerSummary = trainerDatabase.get(username);
-        } else {
-            log.info("Creating new summary for trainer: {}", username);
-            trainerSummary = new TrainerSummary();
-            trainerSummary.setTrainerUsername(username);
-            trainerSummary.setTrainerFirstName(request.getTrainerFirstName());
-            trainerSummary.setTrainerLastname(request.getTrainerLastName());
-            trainerSummary.setTrainerStatus(request.getIsActive());
-            trainerSummary.setYearSummaries(new ArrayList<>());
+
+        log.info("Checking request data: {}", request);
+        //validation block
+        if (request.getTrainerUsername() == null || request.getTrainerFirstName() == null ||
+                request.getTrainerLastName() == null || request.getTrainingDate() == null ||
+                request.getTrainingDuration() == null || request.getActionType() == null) {
+            log.error("Received invalid request. Skipping DB save.");
+            return;
         }
+
+        String username = request.getTrainerUsername();
+        // [3.a] Try to extract Trainer's record by Username
+        TrainerSummary trainerSummary = workloadRepository.findByTrainerUsername(username)
+                .orElseGet(() -> {
+                    // [3.b] If Trainer document does not exist, create new record
+            log.info("Creating new summary for trainer: {}", username);
+            TrainerSummary newSummary = new TrainerSummary();
+                    newSummary.setTrainerUsername(username);
+                    newSummary.setTrainerFirstName(request.getTrainerFirstName());
+                    newSummary.setTrainerLastName(request.getTrainerLastName());
+                    newSummary.setTrainerStatus(request.getIsActive());
+                    newSummary.setYearSummaries(new ArrayList<>()); //empty yearList
+                    return newSummary;
+                });
         LocalDate trainingDate = request.getTrainingDate();
         int year = trainingDate.getYear();
         Month month = trainingDate.getMonth();
 
+        //find year
         List<YearSummary> yearList = trainerSummary.getYearSummaries();
         YearSummary yearSummary = null;
         for (YearSummary summaryInList : yearList) {
@@ -47,12 +62,13 @@ private final Map<String, TrainerSummary> trainerDatabase = new ConcurrentHashMa
                 break;
             }
         }
+        // [3.b] If YearSummary does not exist, create new
         if (yearSummary == null) {
             log.info("YearSummary not found for {}. Creating new one.", year);
             yearSummary = new YearSummary();
             yearSummary.setYear(year);
             yearSummary.setMonthSummaries(new ArrayList<>());
-            yearList.add(yearSummary);
+            yearList.add(yearSummary); //add new year in trainerSummary
         }
         List<MonthSummary> monthList = yearSummary.getMonthSummaries();
         MonthSummary monthSummary = null;
@@ -62,18 +78,20 @@ private final Map<String, TrainerSummary> trainerDatabase = new ConcurrentHashMa
                 break;
             }
         }
+        // [3.b] If MonthSummary does not exist, create new
         if (monthSummary == null) {
             log.info("MonthSummary not found for {}{}. Creating new one", month, year);
             monthSummary = new MonthSummary();
             monthSummary.setMonth(month);
             monthSummary.setHours(0L);
-            monthList.add(monthSummary);
+            monthList.add(monthSummary); //add new month in yearSummary
         }
         Long currentHours = monthSummary.getHours();
         String actionType = request.getActionType();
         Long trainingDuration = request.getTrainingDuration();
         log.info("Updating hours for {}. Month: {}. Action: {}. Duration: {}. Current hours (before): {}", username, month, actionType, trainingDuration, currentHours);
 
+        //3d update records
         if (actionType.equals("ADD")) {
             Long newHours = currentHours + trainingDuration;
             monthSummary.setHours(newHours);
@@ -84,9 +102,11 @@ private final Map<String, TrainerSummary> trainerDatabase = new ConcurrentHashMa
                 }
         log.info("New total hours for {}{}{}:", year, month, monthSummary.getHours());
 
-        trainerDatabase.put(username, trainerSummary);
+                //3e save new value in mongo
+        workloadRepository.save(trainerSummary);
     }
     public TrainerSummary getTrainerSummary(String username) {
-        return trainerDatabase.get(username);
+        return workloadRepository.findByTrainerUsername(username)
+                .orElse(null);
     }
 }
