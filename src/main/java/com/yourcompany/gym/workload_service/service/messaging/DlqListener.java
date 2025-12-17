@@ -2,11 +2,13 @@ package com.yourcompany.gym.workload_service.service.messaging;
 
 import jakarta.jms.Message;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
+@Profile("!test")
 public class DlqListener {
     @JmsListener(destination = "ActiveMQ.DLQ")
     public void receiveDlqMessage(Message message) {
