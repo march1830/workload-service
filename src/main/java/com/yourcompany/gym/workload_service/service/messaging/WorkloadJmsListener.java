@@ -21,9 +21,10 @@ public class WorkloadJmsListener {
 
         log.info("Receive message ActiveMQ for trainer: {}", request.getTrainerUsername());
 
-       // if ("dlq.test".equals(request.getTrainerUsername())) {
-       //     throw new RuntimeException("Test DLQ: test error for dlq_test");
-       // }
+        if (request.getTrainerUsername() != null && request.getTrainerUsername().startsWith("dlq.test")) {
+            log.info("Test DLQ trigger activated for: {}", request.getTrainerUsername());
+            throw new RuntimeException("Test DLQ: test error for " + request.getTrainerUsername());
+        }
 
         try {
             trainerWorkloadService.processWorkload(request);
