@@ -10,7 +10,7 @@ import org.springframework.jms.config.JmsListenerContainerFactory;
 import org.springframework.jms.support.converter.MappingJackson2MessageConverter;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.MessageType;
-import jakarta.jms.ConnectionFactory; // Внимание: jakarta.jms, так как Spring Boot 3
+import jakarta.jms.ConnectionFactory;
 import org.springframework.test.context.ActiveProfiles;
 
 @CucumberContextConfiguration
@@ -18,7 +18,6 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 public class CucumberSpringConfiguration {
 
-    // 1. Создаем конвертер (это у тебя уже было)
     @Bean
     public MessageConverter jacksonJmsMessageConverter() {
         MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
@@ -27,7 +26,7 @@ public class CucumberSpringConfiguration {
         return converter;
     }
 
-    // 2. 👇 ДОБАВЛЯЕМ ЭТОТ МЕТОД: Настраиваем фабрику листенеров
+
     @Bean("myFactory")
     public JmsListenerContainerFactory<?> jmsListenerContainerFactory(
             ConnectionFactory connectionFactory,
@@ -35,7 +34,6 @@ public class CucumberSpringConfiguration {
 
         DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
 
-        // Эта магия говорит: "Настрой фабрику как обычно, но используй наш конвертер"
         configurer.configure(factory, connectionFactory);
 
         return factory;
