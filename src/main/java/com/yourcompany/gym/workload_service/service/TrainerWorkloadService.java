@@ -70,6 +70,7 @@ public class TrainerWorkloadService {
             yearSummary.setMonthSummaries(new ArrayList<>());
             yearList.add(yearSummary); //add new year in trainerSummary
         }
+        //find month
         List<MonthSummary> monthList = yearSummary.getMonthSummaries();
         MonthSummary monthSummary = null;
         for (MonthSummary summaryInList : monthList) {
